@@ -36,7 +36,7 @@ def get_config():
             }        
         return config
     
-def run_all(params, horizon_range=[1,7]):
+def run_all(params):
     
     if torch.cuda.is_available():
         device = torch.device('cuda')
@@ -64,7 +64,6 @@ def run_all(params, horizon_range=[1,7]):
     
     utils.run_all_fn(df=df,
                     params=params,
-                    horizon_range=horizon_range,
                     stride=1)
                      
                      
@@ -112,7 +111,6 @@ class Utils:
     def run_all_fn(self, 
                    df,
                    params,
-                   horizon_range=[1,7],
                    stride=1):
         
         config = get_config()
@@ -159,26 +157,18 @@ class Utils:
                                                         config = config,
                                                         training_prediction = config['training_prediction'])
         print("DONE\n")
-        
-        self.plot_RMSE_epochs(test_rmse, train_rmse)
-        
+                
         train_eval_metrics = model.evaluate_batch(X_train.to(self.device), Y_train.to(self.device))
         test_eval_metrics = model.evaluate_batch(X_test.to(self.device), Y_test.to(self.device))
-        
-        print("Visualizing the predictions on train data ...\n")
-        self.plot_predictions(df_train, train_eval_metrics, horizon_range, split='Train')
-        plt.show()
-        
-        print("Visualizing the predictions on test data ...\n")
-        self.plot_predictions(df_test, test_eval_metrics, horizon_range, split='Test')
-        plt.show()
-        
-        print("Visualizing the change in RMSE across increasing horizon window ...\n")
 
-        train_rmse_values = self.calculate_RMSE_horizon(df_train, train_eval_metrics)
-        test_rmse_values = self.calculate_RMSE_horizon(df_test, test_eval_metrics)
-        self.plot_RMSE_horizon(train_rmse_values, test_rmse_values, config['output_window'])
-        plt.show()
+        print("Writing training data table.../n")
+        train_T_pred_table, train_plot_df, train_plot_gt = self.predictionTable(df_train, train_eval_metrics)
+        train_plot_df.to_csv('LSTM_training_output.csv', index = False)
+        
+        print("Writing training data table.../n")
+        test_T_pred_table, test_plot_df, test_plot_gt = self.predictionTable(df_test, test_eval_metrics)
+        test_plot_df.to_csv('LSTM_testing_output.csv', index = False)
+
         
     def normalize(self, df, use_stat=False):
         '''
@@ -435,34 +425,6 @@ class Utils:
             return pred_table, plot_df, plot_gt_values
 
         return pred_table
-
-    # def plotTable(self, plot_df, plot_gt, T):
-    #     '''
-    #     Plot the prediction table
-    #     '''
-    #     x_plot = plot_df.columns
-    #     fig,ax = plt.subplots()
-        
-    #     fig.set_figheight(5)
-    #     fig.set_figwidth(20)
-        
-    #     ax.grid(visible=True, alpha=0.2)
-        
-    #     for t in T:
-    #         y_axis = plot_df.loc[t,:].values
-    #         ax.plot(x_plot, y_axis, linestyle='--', label='T+'+str(t))
-        
-    #     ax.plot(x_plot, plot_gt, linestyle='--', label='Ground-truth')
-    #     ax.set_xlabel('Timeline')
-    #     ax.set_ylabel('Chlorophyll T+n predictions')
-            
-    #     every_nth = 20
-    #     for n, label in enumerate(ax.xaxis.get_ticklabels()):
-    #         if n % every_nth != 0:
-    #             label.set_visible(False)
-
-    #     ax.set_xticklabels(x_plot, rotation=90)
-    #     plt.legend()
 
     def plot_predictions(self, df, eval_dict, T, split='Train'):
         '''
